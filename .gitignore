@@ -1,0 +1,20 @@
+# Private keys — NEVER commit
+AuthKey_*.p8
+*.p8
+
+# Environment / secrets
+.env
+.env.local
+
+# Report output files
+*.tsv
+*.tsv.gz
+*.csv
+*.csv.gz
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
