@@ -1,0 +1,42 @@
+name: App Store Connect API Test Suite
+
+on:
+  workflow_dispatch:        # run manually from GitHub Actions tab
+  schedule:
+    - cron: '0 8 * * 1'    # every Monday at 8 AM UTC
+
+jobs:
+  test:
+    name: Run API test suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyJWT and cryptography
+        run: pip install PyJWT cryptography
+
+      - name: Write .p8 private key
+        # The secret must be the base64-encoded contents of your .p8 file.
+        # Encode locally with: base64 -i AuthKey_XXXXXXXXXX.p8 | pbcopy
+        # Then add to GitHub: Settings → Secrets → ASC_PRIVATE_KEY_B64
+        run: |
+          echo "${{ secrets.ASC_PRIVATE_KEY_B64 }}" \
+            | base64 --decode \
+            > "AuthKey_${{ secrets.ASC_KEY_ID }}.p8"
+
+      - name: Create .env from secrets
+        run: |
+          printf 'ASC_ISSUER_ID=%s\nASC_KEY_ID=%s\nASC_VENDOR_NUMBER=%s\nASC_APP_ID=%s\n' \
+            "${{ secrets.ASC_ISSUER_ID }}" \
+            "${{ secrets.ASC_KEY_ID }}" \
+            "${{ secrets.ASC_VENDOR_NUMBER }}" \
+            "${{ secrets.ASC_APP_ID }}" > .env
+
+      - name: Run test suite
+        run: bash test_all_apis.sh
