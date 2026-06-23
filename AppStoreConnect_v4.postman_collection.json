@@ -1,0 +1,215 @@
+{
+  "info": {
+    "_postman_id": "asc-reporting-toolkit-v4",
+    "name": "App Store Connect — Reporting Toolkit",
+    "description": "App Store Connect API collection covering Sales Reports, Analytics Reports, and App Info.\n\nSETUP:\n1. Fill in the collection variables (gear icon → Variables):\n   • vendor_number  — your vendor number from App Store Connect\n   • app_apple_id   — your app's Apple ID (numeric)\n   • bearer_token   — run generate_jwt.py to get a fresh token\n2. Run requests in order: 1 → 2/2b → 3 → 4\n\nDATE NOTES:\n- Daily reports: use YYYY-MM-DD (e.g. 2025-06-15). Valid range: last 365 days only.\n- Monthly reports: use YYYY-MM (e.g. 2025-05). Valid range: last 12 months.\n- Never use a future date.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",          "value": "https://api.appstoreconnect.apple.com", "type": "string" },
+    { "key": "bearer_token",      "value": "PASTE_JWT_HERE", "type": "string", "description": "Run generate_jwt.py to get a fresh token. Expires every 20 min." },
+    { "key": "vendor_number",     "value": "YOUR_VENDOR_NUMBER", "type": "string", "description": "Found in App Store Connect → Agreements, Tax, and Banking" },
+    { "key": "app_apple_id",      "value": "YOUR_APP_APPLE_ID", "type": "string", "description": "Numeric App ID from App Store Connect → App Information" },
+    { "key": "daily_date",        "value": "2025-06-15", "type": "string", "description": "Yesterday. Format: YYYY-MM-DD. Max 365 days back." },
+    { "key": "monthly_date",      "value": "2025-05", "type": "string", "description": "Last month. Format: YYYY-MM. Max 12 months back." },
+    { "key": "report_request_id", "value": "", "type": "string", "description": "Fill from Request 2 or 2b response → data.id or data[0].id" },
+    { "key": "report_id",         "value": "", "type": "string", "description": "Fill from Request 3 response → data[0].id" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{bearer_token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "── SALES REPORTS ──────────────────",
+      "item": [
+        {
+          "name": "1 — Daily Downloads (change daily_date variable)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/salesReports?filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[frequency]=DAILY&filter[vendorNumber]={{vendor_number}}&filter[reportDate]={{daily_date}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "salesReports"],
+              "query": [
+                { "key": "filter[reportType]",    "value": "SALES" },
+                { "key": "filter[reportSubType]", "value": "SUMMARY" },
+                { "key": "filter[frequency]",     "value": "DAILY" },
+                { "key": "filter[vendorNumber]",  "value": "{{vendor_number}}" },
+                { "key": "filter[reportDate]",    "value": "{{daily_date}}", "description": "Update daily_date variable. Format: YYYY-MM-DD. Must be within last 365 days." }
+              ]
+            },
+            "description": "Returns gzipped TSV. In Postman: Send → Save Response → Save to file → decompress → open in Excel.\n\nKey columns:\n• Product Type Identifier = 1   → First-Time Downloads\n• Product Type Identifier = 1F  → Re-downloads\n• Product Type Identifier = 7   → Updates\n• Units = count for that day\n\nUpdate the 'daily_date' collection variable before running (e.g. 2025-06-15)."
+          },
+          "response": []
+        },
+        {
+          "name": "1b — Monthly Downloads (change monthly_date variable)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/salesReports?filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[frequency]=MONTHLY&filter[vendorNumber]={{vendor_number}}&filter[reportDate]={{monthly_date}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "salesReports"],
+              "query": [
+                { "key": "filter[reportType]",    "value": "SALES" },
+                { "key": "filter[reportSubType]", "value": "SUMMARY" },
+                { "key": "filter[frequency]",     "value": "MONTHLY" },
+                { "key": "filter[vendorNumber]",  "value": "{{vendor_number}}" },
+                { "key": "filter[reportDate]",    "value": "{{monthly_date}}", "description": "Update monthly_date variable. Format: YYYY-MM. Must be within last 12 months." }
+              ]
+            },
+            "description": "Same as Request 1 but aggregated per month.\nUpdate the 'monthly_date' collection variable (e.g. 2025-05)."
+          },
+          "response": []
+        },
+        {
+          "name": "1c — Subscription Report (monthly)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/salesReports?filter[reportType]=SUBSCRIPTION&filter[reportSubType]=SUMMARY&filter[frequency]=MONTHLY&filter[vendorNumber]={{vendor_number}}&filter[reportDate]={{monthly_date}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "salesReports"],
+              "query": [
+                { "key": "filter[reportType]",    "value": "SUBSCRIPTION" },
+                { "key": "filter[reportSubType]", "value": "SUMMARY" },
+                { "key": "filter[frequency]",     "value": "MONTHLY" },
+                { "key": "filter[vendorNumber]",  "value": "{{vendor_number}}" },
+                { "key": "filter[reportDate]",    "value": "{{monthly_date}}", "description": "Format: YYYY-MM. SUBSCRIPTION reports are monthly only — using daily_date will return a 400 error." }
+              ]
+            },
+            "description": "Active subscriptions, renewals, cancellations, introductory price conversions.\n\nNOTE: SUBSCRIPTION reports are MONTHLY only. Uses monthly_date variable (YYYY-MM).\nIf you see 404 'No report is available', the app has no subscription activity for that month."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── ANALYTICS REPORTS ───────────────",
+      "item": [
+        {
+          "name": "2 — Activate Analytics (run ONCE — needs Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"data\": {\n    \"type\": \"analyticsReportRequests\",\n    \"attributes\": {\n      \"accessType\": \"ONGOING\"\n    },\n    \"relationships\": {\n      \"app\": {\n        \"data\": {\n          \"type\": \"apps\",\n          \"id\": \"{{app_apple_id}}\"\n        }\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/analyticsReportRequests",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "analyticsReportRequests"]
+            },
+            "description": "Run ONCE to activate ongoing report generation for your app.\nRequires Admin role API key.\n\nAfter running:\n→ Copy data.id from response\n→ Paste into collection variable: report_request_id\n\nIf you get an error saying it already exists, run Request 2b instead."
+          },
+          "response": []
+        },
+        {
+          "name": "2b — Get Existing Report Request ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/apps/{{app_apple_id}}/analyticsReportRequests",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "apps", "{{app_apple_id}}", "analyticsReportRequests"]
+            },
+            "description": "Use this if Request 2 was already run before.\nReturns existing report requests for the app.\n\n→ Copy data[0].id from response\n→ Paste into collection variable: report_request_id"
+          },
+          "response": []
+        },
+        {
+          "name": "3 — List All Reports",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/analyticsReportRequests/{{report_request_id}}/reports",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "analyticsReportRequests", "{{report_request_id}}", "reports"]
+            },
+            "description": "Prerequisite: set report_request_id from Request 2 or 2b.\n\nReturns ALL report types in one response. The Apple API does not support filter[reportType] on this endpoint — filter client-side by attributes.reportType.\n\nReport types:\n  APP_STORE_ENGAGEMENT  → Installs, Uninstalls, Active Devices\n  APP_CRASHES           → Crash rates by version and device\n  APP_STORE_DISCOVERY   → Impressions, Product Page Views, Downloads\n  APP_USAGE             → Sessions, Average Session Duration, Retention\n\n→ Find the item whose attributes.reportType matches what you want\n→ Copy its id → Paste into report_id variable → Run Request 4"
+          },
+          "response": []
+        },
+        {
+          "name": "4 — Get Report Download URL",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/analyticsReports/{{report_id}}/segments",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "analyticsReports", "{{report_id}}", "segments"]
+            },
+            "description": "Prerequisite: set report_id from Request 3.\n\nReturns presigned S3 URLs (no auth needed to download them).\n\nTo download the data:\n  curl -o report.csv.gz \"<url_from_response>\"\n  gunzip report.csv.gz\n  open report.csv"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "── APP INFO ────────────────────────",
+      "item": [
+        {
+          "name": "5 — Customer Reviews (latest 20)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/apps/{{app_apple_id}}/customerReviews?sort=-createdDate&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "apps", "{{app_apple_id}}", "customerReviews"],
+              "query": [
+                { "key": "sort",  "value": "-createdDate" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Most recent 20 customer reviews for your app. Increase limit up to 200."
+          },
+          "response": []
+        },
+        {
+          "name": "6 — App Store Versions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/apps/{{app_apple_id}}/appStoreVersions",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "apps", "{{app_apple_id}}", "appStoreVersions"]
+            },
+            "description": "Lists all App Store versions with their status: READY_FOR_SALE, IN_REVIEW, PREPARE_FOR_SUBMISSION, etc."
+          },
+          "response": []
+        },
+        {
+          "name": "7 — Builds List (latest 10)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearer_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/v1/apps/{{app_apple_id}}/builds?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "apps", "{{app_apple_id}}", "builds"],
+              "query": [
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Lists the 10 most recent builds uploaded for your app."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
